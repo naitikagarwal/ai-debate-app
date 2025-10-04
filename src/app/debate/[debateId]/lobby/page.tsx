@@ -17,6 +17,11 @@ import {
 import { auth, db } from "@/backend/firebase";
 import { User } from "firebase/auth";
 import { useParams, useRouter } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Users, Video, Star, Info, Play } from "lucide-react";
 
 type Debate = {
   title?: string;
@@ -268,239 +273,203 @@ export default function DebateLobby() {
   if (!debateId) return <div>Invalid debate ID</div>;
   if (!debate) return <div>Loading...</div>;
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
-      {/* Animated background elements */}
-      <div className="fixed top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse"></div>
-      </div>
-
-      <div className="relative max-w-6xl mx-auto">
+    return (
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-6xl mx-auto space-y-6">
         {/* Header Section */}
-        <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-3xl p-8 mb-6 shadow-2xl">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <div className="flex items-center space-x-3 mb-3">
-                <div className="px-4 py-1 bg-white/20 backdrop-blur-sm rounded-full text-white text-sm font-semibold">
+        <Card className="border shadow-md">
+          <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="secondary">
                   {debate.mode === "team" ? "Team Debate" : "Individual Debate"}
-                </div>
-                <div className="px-4 py-1 bg-yellow-400/90 rounded-full text-yellow-900 text-sm font-bold flex items-center">
-                  <span className="w-2 h-2 bg-yellow-600 rounded-full mr-2 animate-pulse"></span>
+                </Badge>
+                <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300">
                   Waiting to Start
-                </div>
+                </Badge>
               </div>
-              <h2 className="text-4xl font-bold text-white mb-3">
-                {debate.title || "Untitled Debate"}
-              </h2>
-              <p className="text-purple-100 text-lg leading-relaxed">
-                {debate.topic}
-              </p>
+              <CardTitle className="text-3xl">{debate.title || "Untitled Debate"}</CardTitle>
+              <p className="text-muted-foreground">{debate.topic}</p>
             </div>
-            <div className="ml-6">
-              <div className="w-20 h-20 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-                <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                </svg>
-              </div>
+            <div className="flex items-center justify-center w-20 h-20 rounded-xl bg-purple-100">
+              <Video className="w-10 h-10 text-purple-600" />
             </div>
-          </div>
-        </div>
+          </CardHeader>
+        </Card>
 
-        {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Participants Section */}
-          <div className="lg:col-span-2">
-            <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-6 border border-white/10 shadow-xl">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center space-x-3">
-                  <svg className="w-7 h-7 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                  <h3 className="text-2xl font-bold text-white">Participants</h3>
-                  <span className="px-3 py-1 bg-purple-500/30 rounded-full text-purple-200 text-sm font-semibold">
-                    {participants.length}
-                  </span>
+          {/* Participants */}
+          <Card className="lg:col-span-2 border shadow-md">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Users className="w-6 h-6 text-purple-500" />
+                  <CardTitle>Participants</CardTitle>
+                  <Badge variant="outline">{participants.length}</Badge>
                 </div>
               </div>
-
+            </CardHeader>
+            <CardContent>
               {debate.mode === "team" ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Team A */}
-                  <div className="bg-emerald-500/10 border-2 border-emerald-500/30 rounded-2xl p-4">
-                    <div className="flex items-center space-x-2 mb-4">
-                      <div className="w-3 h-3 bg-emerald-400 rounded-full"></div>
-                      <h4 className="text-lg font-bold text-emerald-300">Team A</h4>
-                      <span className="text-emerald-400 text-sm">({teamA.length})</span>
-                    </div>
+                  <div className="rounded-lg border p-4">
+                    <h4 className="font-semibold text-emerald-600 flex items-center gap-2 mb-3">
+                      <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
+                      Team A ({teamA.length})
+                    </h4>
                     <div className="space-y-2">
-                      {teamA.map((p) => (
-                        <div key={p.id} className="bg-white/5 backdrop-blur-sm rounded-xl p-3 flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center text-white font-bold">
+                      {teamA.map((p: any) => (
+                        <div
+                          key={p.id}
+                          className="flex items-center gap-3 rounded-md border p-2 hover:bg-gray-50 transition"
+                        >
+                          <div className="w-10 h-10 flex items-center justify-center rounded-full bg-emerald-200 text-emerald-800 font-bold">
                             {p.displayName?.charAt(0) ?? "A"}
                           </div>
                           <div className="flex-1">
-                            <p className="text-white font-semibold">{p.displayName}</p>
+                            <p className="font-medium">{p.displayName}</p>
                             {p.role === "host" && (
-                              <span className="text-xs text-emerald-300">Host</span>
+                              <span className="text-xs text-muted-foreground">Host</span>
                             )}
                           </div>
-                          {p.role === "host" && (
-                            <svg className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                            </svg>
-                          )}
+                          {p.role === "host" && <Star className="w-4 h-4 text-yellow-500" />}
                         </div>
                       ))}
                     </div>
                   </div>
 
                   {/* Team B */}
-                  <div className="bg-rose-500/10 border-2 border-rose-500/30 rounded-2xl p-4">
-                    <div className="flex items-center space-x-2 mb-4">
-                      <div className="w-3 h-3 bg-rose-400 rounded-full"></div>
-                      <h4 className="text-lg font-bold text-rose-300">Team B</h4>
-                      <span className="text-rose-400 text-sm">({teamB.length})</span>
-                    </div>
+                  <div className="rounded-lg border p-4">
+                    <h4 className="font-semibold text-rose-600 flex items-center gap-2 mb-3">
+                      <span className="w-2 h-2 bg-rose-500 rounded-full"></span>
+                      Team B ({teamB.length})
+                    </h4>
                     <div className="space-y-2">
-                      {teamB.map((p) => (
-                        <div key={p.id} className="bg-white/5 backdrop-blur-sm rounded-xl p-3 flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-rose-400 to-rose-600 rounded-full flex items-center justify-center text-white font-bold">
+                      {teamB.map((p: any) => (
+                        <div
+                          key={p.id}
+                          className="flex items-center gap-3 rounded-md border p-2 hover:bg-gray-50 transition"
+                        >
+                          <div className="w-10 h-10 flex items-center justify-center rounded-full bg-rose-200 text-rose-800 font-bold">
                             {p.displayName?.charAt(0) ?? "B"}
                           </div>
                           <div className="flex-1">
-                            <p className="text-white font-semibold">{p.displayName}</p>
+                            <p className="font-medium">{p.displayName}</p>
                             {p.role === "host" && (
-                              <span className="text-xs text-rose-300">Host</span>
+                              <span className="text-xs text-muted-foreground">Host</span>
                             )}
                           </div>
-                          {p.role === "host" && (
-                            <svg className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                            </svg>
-                          )}
+                          {p.role === "host" && <Star className="w-4 h-4 text-yellow-500" />}
                         </div>
                       ))}
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {participants.map((p) => (
-                    <div key={p.id} className="bg-white/5 backdrop-blur-sm rounded-xl p-4 flex items-center space-x-4 hover:bg-white/10 transition-all">
-                      <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                <div className="space-y-2">
+                  {participants.map((p: any) => (
+                    <div
+                      key={p.id}
+                      className="flex items-center gap-3 rounded-md border p-3 hover:bg-gray-50 transition"
+                    >
+                      <div className="w-10 h-10 flex items-center justify-center rounded-full bg-purple-200 text-purple-800 font-bold">
                         {p.displayName?.charAt(0) ?? "U"}
                       </div>
                       <div className="flex-1">
-                        <p className="text-white font-semibold text-lg">{p.displayName}</p>
+                        <p className="font-medium">{p.displayName}</p>
                         {p.role === "host" && (
-                          <span className="text-sm text-purple-300">Host</span>
+                          <span className="text-xs text-muted-foreground">Host</span>
                         )}
                       </div>
-                      {p.role === "host" && (
-                        <svg className="w-6 h-6 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                        </svg>
-                      )}
+                      {p.role === "host" && <Star className="w-4 h-4 text-yellow-500" />}
                     </div>
                   ))}
                 </div>
               )}
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
-          {/* Actions Section */}
+          {/* Actions */}
           <div className="space-y-4">
             {/* Join Button */}
             {!isParticipant && (
-              <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-6 border border-white/10 shadow-xl">
-                <div className="text-center mb-4">
-                  <svg className="w-16 h-16 text-purple-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                  </svg>
-                  <h4 className="text-white font-bold text-lg mb-2">Join the Debate</h4>
-                  <p className="text-purple-200 text-sm">Be part of this discussion</p>
-                </div>
-                {debate.mode === "team" ? (
-                  <div className="flex flex-col gap-3">
-                    <button
-                      onClick={() => handleJoin("A")}
-                      className={`w-full py-3 rounded-2xl font-bold shadow-lg transition-all bg-gradient-to-r from-emerald-600 to-emerald-700 text-white hover:from-emerald-700 hover:to-emerald-800}`}
+              <Card className="border shadow-md">
+                <CardContent className="p-6 space-y-4">
+                  <h4 className="font-semibold text-center">Join the Debate</h4>
+                  {debate.mode === "team" ? (
+                    <div className="flex flex-col gap-3">
+                      <Button
+                        onClick={() => handleJoin("A")}
+                        className="bg-emerald-600 hover:bg-emerald-700"
+                      >
+                        Join Team A
+                      </Button>
+                      <Button
+                        onClick={() => handleJoin("B")}
+                        disabled={joining || !canJoinTeam("B")}
+                        className="bg-rose-600 hover:bg-rose-700 disabled:bg-rose-300"
+                      >
+                        Join Team B
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      onClick={() => handleJoin()}
+                      disabled={joining}
+                      className="w-full bg-purple-600 hover:bg-purple-700"
                     >
-                      Join Team A
-                    </button>
-                    <button
-                      onClick={() => handleJoin("B")}
-                      disabled={joining || !canJoinTeam("B")}
-                      className={`w-full py-3 rounded-2xl font-bold shadow-lg transition-all ${
-                        canJoinTeam("B")
-                          ? "bg-gradient-to-r from-rose-600 to-rose-700 text-white hover:from-rose-700 hover:to-rose-800"
-                          : "bg-rose-900/30 text-rose-200 cursor-not-allowed"
-                      }`}
-                    >
-                      Join Team B
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => handleJoin()}
-                    disabled={joining}
-                    className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 disabled:from-purple-400 disabled:to-indigo-400 text-white font-bold rounded-2xl shadow-lg hover:shadow-purple-500/50 transition-all transform hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed"
-                  >
-                    {joining ? "Joining..." : "Join Debate"}
-                  </button>
-                )}
-              </div>
+                      {joining ? "Joining..." : "Join Debate"}
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
             )}
 
             {/* Start Button for Host */}
             {isHost && debate.status === "waiting" && (
-              <div className="bg-gradient-to-br from-emerald-500/20 to-emerald-600/20 backdrop-blur-xl rounded-3xl p-6 border-2 border-emerald-500/30 shadow-xl">
-                <div className="text-center mb-4">
-                  <svg className="w-16 h-16 text-emerald-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <h4 className="text-white font-bold text-lg mb-2">Ready to Begin?</h4>
-                  <p className="text-emerald-200 text-sm">Start the debate as host</p>
-                </div>
-                <button
-                  onClick={handleStart}
-                  disabled={!canStart}
-                  className={`w-full py-4 font-bold rounded-2xl shadow-lg transition-all transform ${
-                    canStart
-                      ? "bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white hover:shadow-emerald-500/50 hover:scale-105"
-                      : "bg-emerald-900/30 text-emerald-200 cursor-not-allowed"
-                  }`}
-                >
-                  Start Debate
-                </button>
-              </div>
+              <Card className="border shadow-md">
+                <CardContent className="p-6">
+                  <h4 className="font-semibold text-center mb-3">Ready to Begin?</h4>
+                  <Button
+                    onClick={handleStart}
+                    disabled={!canStart}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300"
+                  >
+                    <Play className="mr-2 h-4 w-4" />
+                    Start Debate
+                  </Button>
+                </CardContent>
+              </Card>
             )}
 
-            {/* Info Card */}
-            <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-6 border border-white/10">
-              <h4 className="text-white font-bold mb-3 flex items-center">
-                <svg className="w-5 h-5 mr-2 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
-                Room Info
-              </h4>
-              <div className="space-y-2 text-sm text-purple-200">
-                <div className="flex items-center justify-between py-2 border-b border-white/10">
-                  <span>Status</span>
-                  <span className="text-white font-semibold">Waiting</span>
+            {/* Room Info */}
+            <Card className="border shadow-md">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Info className="w-5 h-5 text-purple-500" />
+                  <CardTitle className="text-base">Room Info</CardTitle>
                 </div>
-                <div className="flex items-center justify-between py-2 border-b border-white/10">
-                  <span>Mode</span>
-                  <span className="text-white font-semibold capitalize">{debate.mode}</span>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>Status</span>
+                    <span className="font-semibold">{debate.status}</span>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between">
+                    <span>Mode</span>
+                    <span className="font-semibold capitalize">{debate.mode}</span>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between">
+                    <span>Participants</span>
+                    <span className="font-semibold">{participants.length}</span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between py-2">
-                  <span>Participants</span>
-                  <span className="text-white font-semibold">{participants.length}</span>
-                </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
