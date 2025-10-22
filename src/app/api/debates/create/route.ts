@@ -10,8 +10,7 @@ export async function POST(req: Request) {
       mode, 
       uid, 
       displayName, 
-      settings = {}, 
-      debateType = "chat" // "chat" or "video"
+      settings = {} 
     } = await req.json();
 
     if (!uid) {
@@ -24,11 +23,10 @@ export async function POST(req: Request) {
 
     const db = admin.firestore();
 
-    // Merge provided settings with defaults
     const mergedSettings = {
       rounds: typeof settings.rounds === "number" ? settings.rounds : 3,
       timeLimitSeconds: typeof settings.timeLimitSeconds === "number" ? settings.timeLimitSeconds : 180,
-      debateType: debateType === "video" ? "video" : "chat",
+      debateType: "chat",
     };
 
     const debateData = {
