@@ -26,6 +26,7 @@ type Debate = {
   title?: string;
   topic?: string;
   status?: string;
+  startedAt?: any; // Firestore timestamp
   settings?: {
     debateType?: "chat";
     rounds?: number;
@@ -36,21 +37,25 @@ type Debate = {
 type Message = {
   id: string;
   uid: string;
+  displayName?: string;
   text: string;
   createdAt: any;
 };
 
 export default function DebateLive() {
   const params = useParams();
-  const debateId = Array.isArray(params?.debateId)
-    ? params.debateId[0]
-    : params?.debateId;
+  const debateId = Array.isArray(params?.debateId) ? params.debateId[0] : params?.debateId;
 
   const [debate, setDebate] = useState<Debate | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState("");
   const saveTimer = useRef<number | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [currentRound, setCurrentRound] = useState<number>(1);
+
+  // sentinel ref for auto-scroll
+  const bottomRef = useRef<HTMLDivElement | null>(null);
 
   // ----------------------
   // Firestore listeners
@@ -81,6 +86,55 @@ export default function DebateLive() {
   }, [debateId]);
 
   // ----------------------
+  // Timer based on startedAt
+  // ----------------------
+  useEffect(() => {
+    if (!debate || !debate.settings?.timeLimitSeconds || !debate.startedAt || debate.status !== "live") {
+      setTimeLeft(null);
+      return;
+    }
+
+    const roundTime = debate.settings.timeLimitSeconds;
+    const totalRounds = debate.settings.rounds ?? 1;
+
+    const tick = () => {
+      // handle Firestore timestamp objects or ISO/date string
+      const startedAtMs =
+        typeof debate.startedAt?.toDate === "function"
+          ? debate.startedAt.toDate().getTime()
+          : new Date(debate.startedAt).getTime();
+
+      const elapsedSec = Math.floor((Date.now() - startedAtMs) / 1000);
+      const roundNumber = Math.min(Math.floor(elapsedSec / roundTime) + 1, totalRounds);
+      const timeInCurrentRound = elapsedSec % roundTime;
+      const left = Math.max(roundTime - timeInCurrentRound, 0);
+
+      setCurrentRound(roundNumber);
+      setTimeLeft(left);
+
+      // If elapsed covers all rounds, optionally mark debate ended (once)
+      if (elapsedSec >= roundTime * totalRounds) {
+        // End debate if still live
+        const dRef = doc(db, "debates", debateId!);
+        setTimeout(async () => {
+          try {
+            // Update only if still live (to avoid spamming writes)
+            if (debate?.status === "live") {
+              await setDoc(dRef, { status: "ended" }, { merge: true });
+            }
+          } catch (e) {
+            console.error("Failed to set debate ended:", e);
+          }
+        }, 0);
+      }
+    };
+
+    tick();
+    const iv = setInterval(tick, 500);
+    return () => clearInterval(iv);
+  }, [debate, debateId]);
+
+  // ----------------------
   // Auto-save chat history
   // ----------------------
   useEffect(() => {
@@ -90,9 +144,7 @@ export default function DebateLive() {
     if (debate.status !== "live") return;
     if (!messages || messages.length === 0) return;
 
-    if (saveTimer.current) {
-      window.clearTimeout(saveTimer.current);
-    }
+    if (saveTimer.current) window.clearTimeout(saveTimer.current);
     saveTimer.current = window.setTimeout(async () => {
       try {
         const chatDocRef = doc(db, "debates", debateId, "meta", "chatHistory");
@@ -102,6 +154,7 @@ export default function DebateLive() {
             history: messages.map((m) => ({
               id: m.id,
               uid: m.uid,
+              displayName: m.displayName,
               text: m.text,
               createdAt: m.createdAt ?? serverTimestamp(),
             })),
@@ -109,23 +162,15 @@ export default function DebateLive() {
           },
           { merge: true }
         );
-        setLastSavedAt(
-          new Intl.DateTimeFormat("en-IN", {
-            dateStyle: "medium",
-            timeStyle: "short",
-          }).format(new Date())
-        );
-
+        setLastSavedAt(new Date().toLocaleString("en-IN"));
       } catch (err) {
         console.error("Failed to save chat history:", err);
       }
     }, 2000);
 
     return () => {
-      if (saveTimer.current) {
-        window.clearTimeout(saveTimer.current);
-        saveTimer.current = null;
-      }
+      if (saveTimer.current) window.clearTimeout(saveTimer.current);
+      saveTimer.current = null;
     };
   }, [messages, debate, debateId]);
 
@@ -154,13 +199,33 @@ export default function DebateLive() {
   }
 
   // ----------------------
-  // UI
+  // Auto-scroll: scroll sentinel into view whenever messages change
   // ----------------------
+  useEffect(() => {
+    if (!bottomRef.current) return;
+    // ensure DOM updated, then scroll
+    requestAnimationFrame(() => {
+      try {
+        bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+      } catch (e) {
+        // fallback: set scrollTop on nearest scrollable ancestor
+        let el: HTMLElement | null = bottomRef.current;
+        while (el) {
+          if (el.scrollHeight > el.clientHeight) {
+            el.scrollTop = el.scrollHeight;
+            break;
+          }
+          el = el.parentElement;
+        }
+      }
+    });
+  }, [messages]);
+
   if (!debate) return <div>Loading debate...</div>;
 
   const debateType = debate.settings?.debateType || "chat";
-  const rounds = debate.settings?.rounds ?? null;
-  const timeLimitSeconds = debate.settings?.timeLimitSeconds ?? null;
+  const totalRounds = debate.settings?.rounds ?? 1;
+  const chatDisabled = debate.status !== "live" || (currentRound > totalRounds && debate.status !== "live");
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
@@ -184,17 +249,19 @@ export default function DebateLive() {
           <MessageSquare className="w-4 h-4" /> Type:{" "}
           <span className="font-medium text-foreground">{debateType}</span>
         </div>
-        {rounds !== null && (
+        {totalRounds && (
           <div className="flex items-center gap-1">
-            <Layers className="w-4 h-4" /> Rounds:{" "}
-            <span className="font-medium text-foreground">{rounds}</span>
+            <Layers className="w-4 h-4" /> Round:{" "}
+            <Badge variant="secondary">
+              {currentRound > totalRounds ? totalRounds : currentRound} / {totalRounds}
+            </Badge>
           </div>
         )}
-        {timeLimitSeconds !== null && (
+        {timeLeft !== null && (
           <div className="flex items-center gap-1">
-            <Timer className="w-4 h-4" /> Time limit:{" "}
-            <span className="font-medium text-foreground">
-              {timeLimitSeconds}s
+            <Timer className="w-4 h-4" /> Time left:{" "}
+            <span className={`font-medium ${timeLeft <= 10 ? "text-red-500" : "text-foreground"}`}>
+              {timeLeft}s
             </span>
           </div>
         )}
@@ -213,43 +280,36 @@ export default function DebateLive() {
         <CardContent>
           <ScrollArea className="h-80 pr-3">
             <div className="space-y-3">
-              {messages.map((m: any) => (
+              {messages.map((m) => (
                 <div key={m.id} className="text-sm">
-                  <span className="font-semibold text-foreground/90">
-                    {m.displayName}:
-                  </span>{" "}
+                  <span className="font-semibold text-foreground/90">{m.displayName}:</span>{" "}
                   <span className="text-muted-foreground">{m.text}</span>
                 </div>
               ))}
+
+              {/* sentinel element to scroll into view */}
+              <div ref={bottomRef} />
             </div>
           </ScrollArea>
         </CardContent>
 
         <CardFooter>
-          <form
-            onSubmit={sendMessage}
-            className="flex w-full items-center gap-2"
-          >
+          {chatDisabled && <p className="text-sm text-red-500 font-medium">Debate is over. Chat disabled.</p>}
+          <form onSubmit={sendMessage} className="flex w-full items-center gap-2">
             <Input
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Say something..."
-              disabled={debate.status !== "live"}
+              placeholder={chatDisabled ? "Debate over..." : "Say something..."}
+              disabled={chatDisabled}
             />
-            <Button
-              type="submit"
-              disabled={debate.status !== "live"}
-              className="flex items-center gap-1"
-            >
+            <Button type="submit" disabled={chatDisabled} className="flex items-center gap-1">
               <Send className="w-4 h-4" /> Send
             </Button>
           </form>
         </CardFooter>
       </Card>
 
-      {/* Footer Info */}
       <p className="text-sm text-muted-foreground">
-        
         {lastSavedAt && <span>• last saved: {lastSavedAt}</span>}
       </p>
     </div>
