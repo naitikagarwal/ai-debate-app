@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+// import { db } from "@/lib/firebase";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { db } from "@/backend/firebase";
 
@@ -18,13 +19,11 @@ export async function GET(
     snapshot.forEach((doc) => {
       const data = doc.data();
       const { text, uid } = data;
-
       if (!msgByUser[uid]) msgByUser[uid] = [];
       msgByUser[uid].push(text);
     });
 
     const users = Object.keys(msgByUser);
-
     if (users.length !== 2) {
       return NextResponse.json(
         { error: "Debate must have exactly 2 users" },
@@ -32,16 +31,24 @@ export async function GET(
       );
     }
 
-    const user1_id = users[0];
-    const user2_id = users[1];
+    const user1 = users[0];
+    const user2 = users[1];
 
-    const query1 = msgByUser[user1_id].join(" ");
-    const query2 = msgByUser[user2_id].join(" ");
+    // Numbering messages like:
+    // 1. message
+    // 2. message
+    const query1 = msgByUser[user1]
+      .map((msg, i) => `${i + 1}. ${msg}`)
+      .join(" ");
+
+    const query2 = msgByUser[user2]
+      .map((msg, i) => `${i + 1}. ${msg}`)
+      .join(" ");
 
     return NextResponse.json({
-      user1_id,
-      user2_id,
-      debateId,
+      user1,
+      user2,
+      thread_id: debateId,
       query1,
       query2,
     });
@@ -49,4 +56,3 @@ export async function GET(
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
-     
