@@ -8,19 +8,40 @@ import { ethers } from "ethers";
 import { contractABI, contractAddress } from "@/utils/constants";
 import { keccak256, toUtf8Bytes } from "ethers";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-// import { Card, CardHeader, CardTitle, CardContent } from "shadcn"; 
+import { Trophy, User2, BarChart2 } from "lucide-react";
 
 interface AiResult {
   answer: string;
 }
 
 interface ParsedAiAnswer {
-  user1: { score: string; reason: string };
-  user2: { score: string; reason: string };
+  user1: {name:string; score: string; reason: string };
+  user2: {name:string; score: string; reason: string };
   winnerId: string;
   winnerReason: string;
 }
+function ScoreBar({ score, maxScore, label }: { score: number; maxScore: number; label: string }) {
+  const pct = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm font-medium">{label}</span>
+        <span className="text-sm font-semibold">{Number.isFinite(score) ? score : "-"}</span>
+      </div>
 
+      <div className="h-3 w-full bg-gray-200 rounded-full overflow-hidden">
+        <div
+          className="h-full rounded-full transform transition-all duration-800 ease-out"
+          style={{ width: `${pct}%`, background: "linear-gradient(90deg,#4f46e5, #06b6d4)" }}
+          aria-valuenow={pct}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          role="progressbar"
+        />
+      </div>
+    </div>
+  );
+}
 async function storeOnBlockchain(debateId: string, answer: string) {
   if (typeof window === "undefined" || !window.ethereum) {
     console.warn("MetaMask not found!");
@@ -44,36 +65,58 @@ async function storeOnBlockchain(debateId: string, answer: string) {
 }
 
 function parseAiResultText(text: string): ParsedAiAnswer {
-  const lines = text.split("\n").filter((l) => l.trim() !== "");
-  let user1: { score: string; reason: string } = { score: "", reason: "" };
-  let user2: { score: string; reason: string } = { score: "", reason: "" };
+  const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+
+  let user1 = { name: "", score: "", reason: "" };
+  let user2 = { name: "", score: "", reason: "" };
   let winnerId = "";
   let winnerReason = "";
-  let currentTeam = "";
 
-  lines.forEach((line) => {
-    if (line.startsWith("score to ")) {
-      const parts = line.split(" : ");
-      currentTeam = parts[0].replace("score to ", "").trim();
-      const score = parts[1].trim();
-      if (currentTeam === "Naitlik Agarwal") {
-        user1.score = score;
-      } else if (currentTeam === "Kavish") {
-        user2.score = score;
+  let current = ""; // "user1" | "user2" | "winner"
+
+  for (let line of lines) {
+
+    // SCORE LINES
+    if (line.startsWith("score to")) {
+      const match = line.match(/^score to (.+?) : (.+)$/);
+      if (match) {
+        const name = match[1].trim();
+        const score = match[2].trim();
+
+        if (!user1.name) {
+          user1.name = name;
+          user1.score = score;
+          current = "user1";
+        } else {
+          user2.name = name;
+          user2.score = score;
+          current = "user2";
+        }
       }
-    } else if (line.startsWith("reason :")) {
-      const reasonText = line.split("reason :")[1].trim();
-      if (currentTeam === "Naitlik Agarwal") {
+    }
+
+    // WINNER LINE
+    else if (line.startsWith("winner :")) {
+      const match = line.match(/^winner : (.+)$/);
+      if (match) {
+        winnerId = match[1].trim();
+        current = "winner";
+      }
+    }
+
+    // REASON LINES
+    else if (line.startsWith("reason :")) {
+      const reasonText = line.replace("reason :", "").trim();
+
+      if (current === "user1") {
         user1.reason = reasonText;
-      } else if (currentTeam === "Kavish") {
+      } else if (current === "user2") {
         user2.reason = reasonText;
-      } else if (winnerId) {
+      } else if (current === "winner") {
         winnerReason = reasonText;
       }
-    } else if (line.startsWith("winner :")) {
-      winnerId = line.split("winner :")[1].trim();
     }
-  });
+  }
 
   return { user1, user2, winnerId, winnerReason };
 }
@@ -145,58 +188,137 @@ export default function DebateResult() {
     fetchAiResult();
   }, [debateId]);
 
-  return (
-    <div className="min-h-screen bg-gray-50 p-8 font-sans">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-4">Debate Result</h1>
-        <p className="text-lg text-gray-600 mb-8">
-          Debate ID: {debateId || "Loading..."}
-        </p>
+ return (
+    <div className="min-h-screen bg-gradient-to-b from-zinc-50 to-white p-8 font-sans">
+      <div className="max-w-5xl mx-auto">
+        <header className="flex items-start justify-between gap-6 mb-8">
+          <div>
+            <h1 className="text-4xl font-extrabold tracking-tight text-gray-900">Debate Result</h1>
+            <p className="mt-2 text-sm text-gray-500">Debate ID: <span className="font-medium text-gray-700">{debateId ?? "Loading..."}</span></p>
+          </div>
 
-        {/* --- AI Judged Result --- */}
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-2xl font-semibold mb-4 text-gray-800">
-            AI-Judged Result (Off-chain)
-          </h2>
-          {isLoadingApi && <p>Loading AI result...</p>}
-          {apiError && <p className="text-red-500">Error: {apiError}</p>}
-          {aiResult && (
-            <div className="space-y-6">
-              {/* Display user1's result */}
-              <Card className="border p-4 rounded-lg shadow-md">
-                <CardHeader>
-                  <CardTitle className="text-xl font-bold text-blue-600">
-                    User 1 (Naitlik Agarwal) Score: {aiResult.user1.score}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-gray-600">{aiResult.user1.reason}</p>
-                </CardContent>
-              </Card>
-
-              {/* Display user2's result */}
-              <Card className="border p-4 rounded-lg shadow-md">
-                <CardHeader>
-                  <CardTitle className="text-xl font-bold text-blue-600">
-                    User 2 (Kavish) Score: {aiResult.user2.score}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-gray-600">{aiResult.user2.reason}</p>
-                </CardContent>
-              </Card>
-
-              {/* Display winner */}
-              <div className="mt-6 text-center">
-                <span className="text-2xl font-bold text-green-600">
-                  Winner: {aiResult.winnerId}
-                </span>
-                <p className="text-sm text-gray-500 mt-2">{aiResult.winnerReason}</p>
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="hidden sm:flex flex-col items-end">
+              <span className="text-xs text-gray-500">AI Judgement</span>
+              <span className="text-sm font-medium text-gray-700">Off-chain result</span>
             </div>
-          )}
-        </div>
+            <div className="p-2 bg-white/60 backdrop-blur rounded-lg shadow">
+              <BarChart2 size={20} />
+            </div>
+          </div>
+        </header>
+
+        <main className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Competitor Cards */}
+          <Card className="p-6 border-0 shadow-lg rounded-2xl bg-white">
+            <CardHeader className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-indigo-500 to-cyan-400 flex items-center justify-center text-white font-bold">{aiResult?.user1.name?.[0] ?? "U"}</div>
+                <div>
+                  <CardTitle className="text-lg font-semibold text-gray-900">{aiResult?.user1.name ?? "-"}</CardTitle>
+                  <p className="text-xs text-gray-500">Speaker</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm text-gray-500">Score</div>
+                <div className="text-2xl font-bold text-indigo-600">{aiResult?.user1.score ?? "-"}</div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-gray-600 mb-4">{aiResult?.user1.reason ?? "No result available."}</p>
+
+              <div className="mt-3">
+                <ScoreBar score={Number(aiResult?.user1.score ?? 0)} maxScore={100} label={`Performance (${aiResult?.user1.name ?? "User 1"})`} />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="p-6 border-0 shadow-lg rounded-2xl bg-white">
+            <CardHeader className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-rose-500 to-orange-400 flex items-center justify-center text-white font-bold">{aiResult?.user2.name?.[0] ?? "U"}</div>
+                <div>
+                  <CardTitle className="text-lg font-semibold text-gray-900">{aiResult?.user2.name ?? "-"}</CardTitle>
+                  <p className="text-xs text-gray-500">Speaker</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm text-gray-500">Score</div>
+                <div className="text-2xl font-bold text-rose-600">{aiResult?.user2.score ?? "-"}</div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-gray-600 mb-4">{aiResult?.user2.reason ?? "No result available."}</p>
+
+              <div className="mt-3">
+                <ScoreBar score={Number(aiResult?.user2.score ?? 0)} maxScore={100} label={`Performance (${aiResult?.user2.name ?? "User 2"})`} />
+              </div>
+            </CardContent>
+          </Card>
+        </main>
+
+        {/* Winner Banner */}
+        <section className="mt-8">
+          <div className="rounded-2xl bg-gradient-to-r from-white via-slate-50 to-white p-6 shadow-inner border">
+            {isLoadingApi ? (
+              <div className="text-center py-8 text-gray-500">Loading AI result...</div>
+            ) : apiError ? (
+              <div className="text-center py-8 text-red-500">Error: {apiError}</div>
+            ) : aiResult ? (
+              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-xl bg-gradient-to-tr from-yellow-400 to-amber-500 shadow-md">
+                    <Trophy size={28} className="text-white" />
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-500">Winner</div>
+                    <div className="text-2xl font-extrabold text-gray-900">{aiResult.winnerId || "—"}</div>
+                    <div className="text-sm text-gray-500 mt-1">{aiResult.winnerReason}</div>
+                  </div>
+                </div>
+
+                <div className="w-full md:w-1/3">
+                  <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
+                    <span>{aiResult.user1.name}</span>
+                    <span>{aiResult.user2.name}</span>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-700"
+                          style={{ width: `${Math.round((Number(aiResult?.user1.score ?? 0) / 100) * 100)}%`, background: "linear-gradient(90deg,#6366f1,#06b6d4)" }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="w-12 text-right text-sm font-semibold">{Number(aiResult?.user2.score ?? 0)}</div>
+                  </div>
+
+                  <div className="flex items-center gap-3 mt-3">
+                    <div className="flex-1">
+                      <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-700"
+                          style={{ width: `${Math.round((Number(aiResult?.user2.score ?? 0) / 100) * 100)}%`, background: "linear-gradient(90deg,#fb7185,#fb923c)" }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="w-12 text-right text-sm font-semibold">{Number(aiResult?.user2.score ?? 0)}</div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">No AI result available yet.</div>
+            )}
+          </div>
+        </section>
+
+        <footer className="mt-6 text-xs text-gray-400 text-center">Powered by your AI judge • Designed for clarity & comparison</footer>
       </div>
     </div>
   );
 }
+
