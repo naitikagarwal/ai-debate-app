@@ -200,7 +200,7 @@ export default function DebateResult() {
           <div className="flex items-center gap-3">
             <div className="hidden sm:flex flex-col items-end">
               <span className="text-xs text-gray-500">AI Judgement</span>
-              <span className="text-sm font-medium text-gray-700">Off-chain result</span>
+              <span className="text-sm font-medium text-gray-700">Result page</span>
             </div>
             <div className="p-2 bg-white/60 backdrop-blur rounded-lg shadow">
               <BarChart2 size={20} />
@@ -216,7 +216,7 @@ export default function DebateResult() {
                 <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-indigo-500 to-cyan-400 flex items-center justify-center text-white font-bold">{aiResult?.user1.name?.[0] ?? "U"}</div>
                 <div>
                   <CardTitle className="text-lg font-semibold text-gray-900">{aiResult?.user1.name ?? "-"}</CardTitle>
-                  <p className="text-xs text-gray-500">Speaker</p>
+                  {/* <p className="text-xs text-gray-500">Speaker</p> */}
                 </div>
               </div>
               <div className="text-right">
@@ -239,7 +239,7 @@ export default function DebateResult() {
                 <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-rose-500 to-orange-400 flex items-center justify-center text-white font-bold">{aiResult?.user2.name?.[0] ?? "U"}</div>
                 <div>
                   <CardTitle className="text-lg font-semibold text-gray-900">{aiResult?.user2.name ?? "-"}</CardTitle>
-                  <p className="text-xs text-gray-500">Speaker</p>
+                  {/* <p className="text-xs text-gray-500">Speaker</p> */}
                 </div>
               </div>
               <div className="text-right">
@@ -277,7 +277,7 @@ export default function DebateResult() {
                   </div>
                 </div>
 
-                <div className="w-full md:w-1/3">
+                {/* <div className="w-full md:w-1/3">
                   <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
                     <span>{aiResult.user1.name}</span>
                     <span>{aiResult.user2.name}</span>
@@ -308,7 +308,7 @@ export default function DebateResult() {
 
                     <div className="w-12 text-right text-sm font-semibold">{Number(aiResult?.user2.score ?? 0)}</div>
                   </div>
-                </div>
+                </div> */}
               </div>
             ) : (
               <div className="text-center py-8 text-gray-500">No AI result available yet.</div>
@@ -316,7 +316,7 @@ export default function DebateResult() {
           </div>
         </section>
 
-        <footer className="mt-6 text-xs text-gray-400 text-center">Powered by your AI judge • Designed for clarity & comparison</footer>
+        <footer className="mt-6 text-xs text-gray-400 text-center">Powered by AI judge</footer>
       </div>
     </div>
   );
