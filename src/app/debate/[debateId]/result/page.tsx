@@ -42,7 +42,7 @@ function ScoreBar({ score, maxScore, label }: { score: number; maxScore: number;
     </div>
   );
 }
-async function storeOnBlockchain(debateId: string, answer: string) {
+async function storeOnBlockchain(debateId: number, answer: string) {
   if (typeof window === "undefined" || !window.ethereum) {
     console.warn("MetaMask not found!");
     return;
@@ -56,7 +56,7 @@ async function storeOnBlockchain(debateId: string, answer: string) {
   const hashValue = keccak256(toUtf8Bytes(answer));
 
   try {
-    const tx = await contract.storeResult(debateId, hashValue);
+    const tx = await contract.storeResult(Number(debateId), hashValue);
     await tx.wait();
     console.log("✅ Result stored on blockchain:", hashValue);
   } catch (err) {
@@ -126,7 +126,7 @@ export default function DebateResult() {
   const [isLoadingApi, setIsLoadingApi] = useState<boolean>(true);
   const [apiError, setApiError] = useState<string | null>(null);
   const params = useParams();
-  const debateId = params?.debateId as string | undefined;
+  const debateId = params?.debateId as number | undefined;
 
   // --- Fetch AI Judged Result ---
   useEffect(() => {
@@ -137,7 +137,7 @@ export default function DebateResult() {
       setApiError(null);
       try {
         console.log("🔍 Checking Firebase cache for debate:", debateId);
-        const resultRef = doc(db, "results", debateId);
+        const resultRef = doc(db, "results", String(debateId));
         const existing = await getDoc(resultRef);
 
         if (existing.exists()) {
@@ -172,7 +172,7 @@ export default function DebateResult() {
           ...resultData,
           createdAt: serverTimestamp(),
         });
-        await storeOnBlockchain(debateId, resultData.answer);
+        await storeOnBlockchain(Number(debateId), resultData.answer);
 
         console.log("Saved AI result in Firebase");
         const parsedAnswer = parseAiResultText(resultData.answer);
