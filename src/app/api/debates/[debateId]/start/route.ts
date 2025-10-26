@@ -3,11 +3,11 @@ import admin from "@/backend/firebaseAdmin";
 
 export async function POST(
   req: Request,
-  { params }: { params: { debateId: string } }
+  context: { params: Promise<{ debateId: string }> }
 ) {
   try {
     const { uid, displayName } = await req.json();
-    const { debateId } = params;
+    const { debateId } = await context.params;
 
     if (!uid) return NextResponse.json({ error: "Missing user id" }, { status: 401 });
 
