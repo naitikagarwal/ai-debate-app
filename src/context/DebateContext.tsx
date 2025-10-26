@@ -7,6 +7,7 @@ import React, {
   createContext,
   ReactNode,
 } from "react";
+
 import { ethers } from "ethers";
 
 // You must create this file in your utils folder
@@ -19,10 +20,10 @@ interface FormData {
   stakeAmount: string;
 }
 
+// MODIFIED: This interface now matches the contract's readDebateRecord return
 interface ViewedDebate {
   winner: string;
-  scores: string;
-  reasoning: string;
+  resultData: string; // Changed from scores and reasoning
 }
 
 interface DebateContextType {
@@ -30,11 +31,11 @@ interface DebateContextType {
   currentAccount: string;
   formData: FormData;
   handleChange: (e: React.ChangeEvent<HTMLInputElement>, name: string) => void;
-  createDebate: () => Promise<number | undefined>; // <-- MODIFIED
+  createDebate: () => Promise<number | undefined>;
   joinDebate: (debateId: number, stakeAmount: string) => Promise<void>;
   payAndReadDebate: (debateId: number) => Promise<ViewedDebate | undefined>;
   allDebates: any[]; // You can create a specific 'Debate' type for this
-  viewedDebate: ViewedDebate | null;
+  viewedDebate: ViewedDebate | null; // This type is now updated
   isLoading: boolean;
 }
 
@@ -56,13 +57,12 @@ export const useDebateContext = () => {
 
 // Helper function to get the Ethereum provider and contract
 const getEthereumContract = async (): Promise<ethers.Contract | null> => {
-  // <-- FIX 1: Add async and Promise
   if (typeof window !== "undefined" && window.ethereum) {
     const provider = new ethers.BrowserProvider(window.ethereum as any);
-    const signer = await provider.getSigner(); // <-- FIX 2: Add await here
+    const signer = await provider.getSigner();
     const debateContract = new ethers.Contract(
       contractAddress,
-      contractABI,
+      contractABI, // Ensure this ABI is up-to-date
       signer
     );
     return debateContract;
@@ -78,6 +78,7 @@ export const DebateProvider = ({ children }: DebateProviderProps) => {
     stakeAmount: "",
   });
   const [allDebates, setAllDebates] = useState<any[]>([]); // TODO: Fetch debates
+  // This state now holds the updated ViewedDebate type
   const [viewedDebate, setViewedDebate] = useState<ViewedDebate | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
@@ -124,13 +125,12 @@ export const DebateProvider = ({ children }: DebateProviderProps) => {
   const createDebate = async (): Promise<number | undefined> => {
     if (!window.ethereum) {
       alert("Please install MetaMask.");
-      return; // <-- ADDED
+      return;
     }
     try {
       const { opponentAddress, stakeAmount } = formData;
       if (!opponentAddress || !stakeAmount) return;
 
-      // 👇 FIX: Add 'await' here
       const contract = await getEthereumContract();
       if (!contract) return;
 
@@ -141,11 +141,7 @@ export const DebateProvider = ({ children }: DebateProviderProps) => {
         value: parsedAmount,
       });
 
-      // --- MODIFICATION START ---
-      // Wait for the transaction to be mined AND get the event logs
       const receipt = await tx.wait();
-
-      // Find the 'DebateCreated' event in the transaction receipt
       const event = receipt.events?.find(
         (e: any) => e.event === "DebateCreated"
       );
@@ -153,26 +149,23 @@ export const DebateProvider = ({ children }: DebateProviderProps) => {
       setIsLoading(false);
 
       if (event && event.args) {
-        // Get the debateId (which is the first argument, an index)
         const debateId = event.args[0];
         console.log(`Debate created on-chain with ID: ${debateId.toNumber()}`);
-        return debateId.toNumber(); // Return the new on-chain ID
+        return debateId.toNumber();
       } else {
         console.error("Could not find DebateCreated event in transaction");
         return undefined;
       }
-      // --- MODIFICATION END ---
     } catch (error) {
       console.log(error);
       setIsLoading(false);
-      return undefined; // <-- ADDED
+      return undefined;
     }
   };
 
   const joinDebate = async (debateId: number, stakeAmount: string) => {
     if (!window.ethereum) return alert("Please install MetaMask.");
     try {
-      // 👇 FIX: Add 'await' here
       const contract = await getEthereumContract();
       if (!contract) return;
 
@@ -193,16 +186,17 @@ export const DebateProvider = ({ children }: DebateProviderProps) => {
     }
   };
 
+  // --- MODIFICATION HERE ---
   const payAndReadDebate = async (
     debateId: number
   ): Promise<ViewedDebate | undefined> => {
     if (!window.ethereum) {
       alert("Please install MetaMask.");
-      return undefined; // <-- FIX 1: Explicitly return undefined
+      return undefined;
     }
 
     try {
-      const contract = await getEthereumContract(); // <-- See next section for this await
+      const contract = await getEthereumContract();
       if (!contract) return undefined;
 
       setIsLoading(true);
@@ -211,13 +205,14 @@ export const DebateProvider = ({ children }: DebateProviderProps) => {
       await txPay.wait();
       console.log(`Payment successful: ${txPay.hash}`);
 
+      // readDebateRecord now returns [winner, resultData]
       const results = await contract.readDebateRecord(debateId);
       setIsLoading(false);
 
+      // Structure the result according to the new ViewedDebate interface
       const structuredResult: ViewedDebate = {
         winner: results[0],
-        scores: results[1],
-        reasoning: results[2],
+        resultData: results[1], // Changed from scores/reasoning
       };
 
       setViewedDebate(structuredResult);
@@ -225,9 +220,10 @@ export const DebateProvider = ({ children }: DebateProviderProps) => {
     } catch (error) {
       console.log(error);
       setIsLoading(false);
-      return undefined; // <-- FIX 2: Explicitly return undefined in the catch block
+      return undefined;
     }
   };
+  // --- END OF MODIFICATION ---
 
   useEffect(() => {
     checkIfWalletIsConnected();
@@ -252,3 +248,4 @@ export const DebateProvider = ({ children }: DebateProviderProps) => {
     </DebateContext.Provider>
   );
 };
+

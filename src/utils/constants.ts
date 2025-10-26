@@ -1,14 +1,14 @@
 // e.g., in src/utils/constants.ts
-export const contractAddress = "0x6CF326D98F4f8bABDc721f84Dc1B6319D0E603eC";
+export const contractAddress = "0x5989D3E1c0324973850201169058C9c6E17B15D6";
 export const contractABI =  [
     {
       "anonymous": false,
       "inputs": [
         {
           "indexed": false,
-          "internalType": "string",
+          "internalType": "uint256",
           "name": "debateId",
-          "type": "string"
+          "type": "uint256"
         },
         {
           "indexed": false,
@@ -29,17 +29,17 @@ export const contractABI =  [
     {
       "inputs": [
         {
-          "internalType": "string",
+          "internalType": "uint256",
           "name": "debateId",
-          "type": "string"
+          "type": "uint256"
         }
       ],
       "name": "getResult",
       "outputs": [
         {
-          "internalType": "string",
+          "internalType": "uint256",
           "name": "",
-          "type": "string"
+          "type": "uint256"
         },
         {
           "internalType": "string",
@@ -58,9 +58,9 @@ export const contractABI =  [
     {
       "inputs": [
         {
-          "internalType": "string",
+          "internalType": "uint256",
           "name": "debateId",
-          "type": "string"
+          "type": "uint256"
         },
         {
           "internalType": "string",
