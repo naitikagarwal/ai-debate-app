@@ -1,12 +1,12 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { collection, getDocs, query, orderBy, doc, getDoc } from "firebase/firestore";
 import { db } from "@/backend/firebase";
 
 export async function GET(
-  request: Request,
-  { params }: { params: { debateId: string } }
+  request: NextRequest,
+  context: { params: Promise<{ debateId: string }> }
 ) {
-  const { debateId } = params;
+  const { debateId } = await context.params;
 
   try {
     // Fetch debate info
