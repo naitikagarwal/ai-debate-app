@@ -276,39 +276,6 @@ export default function DebateResult() {
                     <div className="text-sm text-gray-500 mt-1">{aiResult.winnerReason}</div>
                   </div>
                 </div>
-
-                {/* <div className="w-full md:w-1/3">
-                  <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
-                    <span>{aiResult.user1.name}</span>
-                    <span>{aiResult.user2.name}</span>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1">
-                      <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all duration-700"
-                          style={{ width: `${Math.round((Number(aiResult?.user1.score ?? 0) / 100) * 100)}%`, background: "linear-gradient(90deg,#6366f1,#06b6d4)" }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="w-12 text-right text-sm font-semibold">{Number(aiResult?.user2.score ?? 0)}</div>
-                  </div>
-
-                  <div className="flex items-center gap-3 mt-3">
-                    <div className="flex-1">
-                      <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all duration-700"
-                          style={{ width: `${Math.round((Number(aiResult?.user2.score ?? 0) / 100) * 100)}%`, background: "linear-gradient(90deg,#fb7185,#fb923c)" }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="w-12 text-right text-sm font-semibold">{Number(aiResult?.user2.score ?? 0)}</div>
-                  </div>
-                </div> */}
               </div>
             ) : (
               <div className="text-center py-8 text-gray-500">No AI result available yet.</div>

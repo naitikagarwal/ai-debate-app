@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-// import { db } from "@/lib/firebase";
 import { collection, getDocs, query, orderBy, doc, getDoc } from "firebase/firestore";
 import { db } from "@/backend/firebase";
 
@@ -10,21 +9,50 @@ export async function GET(
   const { debateId } = params;
 
   try {
-    // Reference to the messages collection for this specific debate
+    // Fetch debate info
+    const debateDoc = doc(db, "debates", debateId);
+    const debateSnap = await getDoc(debateDoc);
+
+    if (!debateSnap.exists()) {
+      return NextResponse.json({ error: "Debate not found" }, { status: 404 });
+    }
+
+    const debateData = debateSnap.data();
+    const mode = debateData?.mode || "individual";
+
+    // Fetch all messages
     const messagesRef = collection(db, `debates/${debateId}/messages`);
     const q = query(messagesRef, orderBy("createdAt", "asc"));
     const snapshot = await getDocs(q);
 
-    const msgByUser: Record<string, string[]> = {};
+    const msgByKey: Record<string, string[]> = {};
 
     snapshot.forEach((doc) => {
       const data = doc.data();
-      const { text, uid } = data;
-      if (!msgByUser[uid]) msgByUser[uid] = [];
-      msgByUser[uid].push(text);
+      const { text, uid, team } = data;
+
+      // In team mode, group by team; else by uid
+      const key = mode === "team" ? team : uid;
+      if (!msgByKey[key]) msgByKey[key] = [];
+      msgByKey[key].push(text);
     });
 
-    const users = Object.keys(msgByUser);
+    // In team mode, ensure team A and team B exist
+    if (mode === "team") {
+      const teamA = msgByKey["A"] || [];
+      const teamB = msgByKey["B"] || [];
+
+      return NextResponse.json({
+        team1: "Team A",
+        team2: "Team B",
+        thread_id: debateId,
+        query1: teamA.map((msg, i) => `${i + 1}. ${msg}`).join(" "),
+        query2: teamB.map((msg, i) => `${i + 1}. ${msg}`).join(" "),
+      });
+    }
+
+    // Individual mode
+    const users = Object.keys(msgByKey);
     if (users.length !== 2) {
       return NextResponse.json(
         { error: "Debate must have exactly 2 users" },
@@ -32,13 +60,11 @@ export async function GET(
       );
     }
 
-    // Fetch the displayName for both users
     const [user1Uid, user2Uid] = users;
-
     const getUserDisplayName = async (uid: string) => {
       const userDoc = doc(db, "users", uid);
-      const userSnapshot = await getDoc(userDoc);
-      return userSnapshot.exists() ? userSnapshot.data().displayName : uid; // Fallback to uid if no displayName
+      const userSnap = await getDoc(userDoc);
+      return userSnap.exists() ? userSnap.data().displayName : uid;
     };
 
     const [user1DisplayName, user2DisplayName] = await Promise.all([
@@ -46,16 +72,9 @@ export async function GET(
       getUserDisplayName(user2Uid),
     ]);
 
-    // Format the messages by each user
-    const query1 = msgByUser[user1Uid]
-      .map((msg, i) => `${i + 1}. ${msg}`)
-      .join(" ");
+    const query1 = msgByKey[user1Uid].map((msg, i) => `${i + 1}. ${msg}`).join(" ");
+    const query2 = msgByKey[user2Uid].map((msg, i) => `${i + 1}. ${msg}`).join(" ");
 
-    const query2 = msgByUser[user2Uid]
-      .map((msg, i) => `${i + 1}. ${msg}`)
-      .join(" ");
-
-    // Return the response with display names
     return NextResponse.json({
       user1: user1DisplayName,
       user2: user2DisplayName,

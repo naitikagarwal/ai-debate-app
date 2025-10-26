@@ -15,20 +15,18 @@ import {
   arrayUnion,
 } from "firebase/firestore";
 import { auth, db } from "@/backend/firebase";
-import { User } from "firebase/auth";
 import { useParams, useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Users, Video, Star, Info, Play, Wallet } from "lucide-react";
+import { Users, Video, Star, Info, Play, Copy } from "lucide-react";
 
 type Debate = {
   title?: string;
   topic?: string;
   mode?: "individual" | "team";
   meetingLink?: string;
-  meetingToken?: string;
   createdBy?: string;
   status?: string;
   settings?: { rounds?: number; timeLimitSeconds?: number };
@@ -53,11 +51,11 @@ export default function DebateLobby() {
     : params?.debateId;
 
   const router = useRouter();
-
   const [debate, setDebate] = useState<Debate | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [isHost, setIsHost] = useState(false);
   const [joining, setJoining] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const [teams, setTeams] = useState<Record<string, any> | null>(null);
   const [teamA, setTeamA] = useState<Participant[]>([]);
@@ -66,12 +64,14 @@ export default function DebateLobby() {
   useEffect(() => {
     if (!debateId) return;
 
+    setLoading(true);
+
     const dRef = doc(db, "debates", debateId);
     const unsubD = onSnapshot(dRef, (snap) => {
       const data = snap.exists() ? (snap.data() as Debate) : null;
       setDebate(data);
 
-      const user: User | null = auth.currentUser;
+      const user = auth.currentUser;
       if (snap.exists() && user) {
         setIsHost(Boolean(data?.createdBy === user.uid));
       } else {
@@ -94,6 +94,7 @@ export default function DebateLobby() {
         } as Participant;
       });
       setParticipants(docs);
+      setLoading(false); // stop loading when participants are fetched
     });
 
     const teamsCol = collection(db, "debates", debateId, "teams");
@@ -112,6 +113,7 @@ export default function DebateLobby() {
     };
   }, [debateId]);
 
+  // Teams mapping
   useEffect(() => {
     const partByUid = new Map<string, Participant>();
     participants.forEach((p) => partByUid.set(p.uid, p));
@@ -143,6 +145,7 @@ export default function DebateLobby() {
     setTeamB(Array.from(new Map(b.map((p) => [p.uid, p])).values()));
   }, [participants, teams]);
 
+  // Redirect to live if started
   useEffect(() => {
     if (!debateId || !debate) return;
     if (debate.status === "live") {
@@ -160,12 +163,8 @@ export default function DebateLobby() {
     participants.some((p) => p.uid === auth.currentUser!.uid);
 
   function canJoinTeam(team: "A" | "B") {
-    if (team === "A") {
-      return teamB.length > 0 || (teamA.length === 0 && teamB.length === 0);
-    }
-    if (team === "B") {
-      return teamA.length > 0 || (teamA.length === 0 && teamB.length === 0);
-    }
+    if (team === "A") return teamB.length > 0 || (teamA.length === 0 && teamB.length === 0);
+    if (team === "B") return teamA.length > 0 || (teamA.length === 0 && teamB.length === 0);
     return false;
   }
 
@@ -245,14 +244,30 @@ export default function DebateLobby() {
     });
   }
 
+  const handleCopyLink = async () => {
+    const link = `${window.location.origin}/debate/${debateId}/lobby`;
+    try {
+      await navigator.clipboard.writeText(link);
+      alert("Debate link copied to clipboard!");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to copy link.");
+    }
+  };
+
   if (!debateId) return <div>Invalid debate ID</div>;
-  if (!debate) return <div>Loading...</div>;
+  if (loading || !debate) return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="w-12 h-12 border-4 border-blue-300 border-t-blue-600 rounded-full animate-spin"></div>
+    </div>
+  );
 
   const isLoading = joining;
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto space-y-6">
+
         {/* Header Section */}
         <Card className="border shadow-md">
           <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -265,9 +280,7 @@ export default function DebateLobby() {
                   Waiting to Start
                 </Badge>
               </div>
-              <CardTitle className="text-3xl">
-                {debate.title || "Untitled Debate"}
-              </CardTitle>
+              <CardTitle className="text-3xl">{debate.title || "Untitled Debate"}</CardTitle>
               <p className="text-muted-foreground">{debate.topic}</p>
             </div>
             <div className="flex items-center justify-center w-20 h-20 rounded-xl bg-purple-100">
@@ -276,6 +289,19 @@ export default function DebateLobby() {
           </CardHeader>
         </Card>
 
+        {/* Copy Link Button */}
+        <Card className="border shadow-md">
+          <CardContent className="flex justify-between items-center">
+            <span className="text-sm text-gray-600">Share this debate:</span>
+            <Button onClick={handleCopyLink} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700">
+              <Copy className="w-4 h-4" />
+              Copy Link
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Participants & Actions */}
+        {/* <div className="grid grid-cols-1 lg:grid-cols-3 gap-6"> */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Participants */}
           <Card className="lg:col-span-2 border shadow-md">
