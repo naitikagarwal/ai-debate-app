@@ -11,8 +11,7 @@ import {
   serverTimestamp,
   setDoc,
 } from "firebase/firestore";
-import { auth, db } from "@/backend/firebase";
-import { useParams } from "next/navigation";
+import { auth, db } from "@/backend/firebase"; 
 
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -21,6 +20,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { MessageSquare, Send, Timer, Layers } from "lucide-react";
+import { useParams } from "next/navigation";
 
 type Debate = {
   title?: string;
@@ -46,6 +46,7 @@ export default function DebateLive() {
   const params = useParams();
   const debateId = Array.isArray(params?.debateId) ? params.debateId[0] : params?.debateId;
 
+
   const [debate, setDebate] = useState<Debate | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState("");
@@ -61,7 +62,7 @@ export default function DebateLive() {
   // Firestore listeners
   // ----------------------
   useEffect(() => {
-    if (!debateId) return;
+    if (!debateId) return; // Now depends on state variable
 
     const dRef = doc(db, "debates", debateId);
     const unsubD = onSnapshot(dRef, (snap) => {
@@ -83,7 +84,7 @@ export default function DebateLive() {
       unsubD();
       unsubM();
     };
-  }, [debateId]);
+  }, [debateId]); // Runs when debateId is found
 
   // ----------------------
   // Timer based on startedAt
@@ -134,9 +135,6 @@ export default function DebateLive() {
     return () => clearInterval(iv);
   }, [debate, debateId]);
 
-  // ----------------------
-  // Auto-save chat history
-  // ----------------------
   useEffect(() => {
     if (!debateId || !debate) return;
     const debateType = debate.settings?.debateType || "chat";
@@ -221,7 +219,22 @@ export default function DebateLive() {
     });
   }, [messages]);
 
-  if (!debate) return <div>Loading debate...</div>;
+  // --- ADDED: Redirect when debate ends ---
+  useEffect(() => {
+    if (debate?.status === "ended" && debateId) {
+      // Redirect to the result page, passing the debateId as a query param
+      // This matches the logic in DebateResultPage.tsx
+      // Assumes your result page is at the route `/debate/result`
+      window.location.href = `/debate/${debateId}/result`;
+    }
+  }, [debate?.status, debateId]);
+  // --- END OF ADDITION ---
+
+  if (!debateId) {
+    return <div>Loading debate ID... Make sure it's in the URL (e.g., ?debateId=123)</div>;
+  }
+  
+  if (!debate) return <div>Loading debate data...</div>;
 
   const debateType = debate.settings?.debateType || "chat";
   const totalRounds = debate.settings?.rounds ?? 1;
@@ -315,3 +328,4 @@ export default function DebateLive() {
     </div>
   );
 }
+

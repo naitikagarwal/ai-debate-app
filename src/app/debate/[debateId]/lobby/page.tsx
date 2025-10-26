@@ -22,7 +22,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Users, Video, Star, Info, Play, Wallet } from "lucide-react";
-import { useDebateContext } from "@/context/DebateContext";
 
 type Debate = {
   title?: string;
@@ -35,12 +34,6 @@ type Debate = {
   settings?: { rounds?: number; timeLimitSeconds?: number };
   createdAt?: any;
   startedAt?: any;
-  // --- Fields from Blockchain integration ---
-  stake?: string; // The amount P1 staked
-  participantA?: string; // P1's wallet address
-  participantB?: string; // P2's wallet address
-  onChainId?: number; // The ID of the debate on the smart contract
-  // ---
   [k: string]: any;
 };
 
@@ -61,24 +54,12 @@ export default function DebateLobby() {
 
   const router = useRouter();
 
-  // --- Blockchain Context Integration ---
-  const {
-    currentAccount,
-    connectWallet,
-    joinDebate: joinBlockchainDebate,
-    isLoading: isBlockchainLoading,
-  } = useDebateContext();
-  // --- End Blockchain Integration ---
-
   const [debate, setDebate] = useState<Debate | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [isHost, setIsHost] = useState(false);
-  const [joining, setJoining] = useState(false); // Used for Firestore joining
+  const [joining, setJoining] = useState(false);
 
-  // teams state derived from teams subcollection
   const [teams, setTeams] = useState<Record<string, any> | null>(null);
-
-  // final team arrays shown in UI (computed)
   const [teamA, setTeamA] = useState<Participant[]>([]);
   const [teamB, setTeamB] = useState<Participant[]>([]);
 
@@ -98,7 +79,6 @@ export default function DebateLobby() {
       }
     });
 
-    // participants listener
     const partCol = collection(db, "debates", debateId, "participants");
     const q = query(partCol, orderBy("joinedAt", "asc"));
     const unsubP = onSnapshot(q, (snap: QuerySnapshot<DocumentData>) => {
@@ -116,7 +96,6 @@ export default function DebateLobby() {
       setParticipants(docs);
     });
 
-    // teams listener
     const teamsCol = collection(db, "debates", debateId, "teams");
     const unsubT = onSnapshot(teamsCol, (snap) => {
       const map: Record<string, any> = {};
@@ -133,65 +112,38 @@ export default function DebateLobby() {
     };
   }, [debateId]);
 
-  // merge participants + teams.members into teamA/teamB arrays
   useEffect(() => {
-    // ... (existing logic, no changes needed) ...
-    // map participants by uid
     const partByUid = new Map<string, Participant>();
     participants.forEach((p) => partByUid.set(p.uid, p));
 
     const a: Participant[] = [];
     const b: Participant[] = [];
 
-    // 1) include participants who have team field set
     participants.forEach((p) => {
       if (p.team === "A") a.push(p);
       else if (p.team === "B") b.push(p);
     });
 
-    // 2) include uids from teams collection (covers host already in teams/A.members)
     const teamAMembers: string[] = teams?.["A"]?.members || [];
     const teamBMembers: string[] = teams?.["B"]?.members || [];
 
     teamAMembers.forEach((uid) => {
       const p = partByUid.get(uid);
-      if (p) {
-        // if participant exists but missing team field, ensure included
-        if (!a.some((x) => x.uid === uid)) a.push(p);
-      } else {
-        // participant doc missing — create placeholder so they appear in UI
-        a.push({
-          id: uid,
-          uid,
-          displayName: "Anonymous",
-        } as Participant);
-      }
+      if (p && !a.some((x) => x.uid === uid)) a.push(p);
+      else if (!p) a.push({ id: uid, uid, displayName: "Anonymous" });
     });
 
     teamBMembers.forEach((uid) => {
       const p = partByUid.get(uid);
-      if (p) {
-        if (!b.some((x) => x.uid === uid)) b.push(p);
-      } else {
-        b.push({
-          id: uid,
-          uid,
-          displayName: "Anonymous",
-        } as Participant);
-      }
+      if (p && !b.some((x) => x.uid === uid)) b.push(p);
+      else if (!p) b.push({ id: uid, uid, displayName: "Anonymous" });
     });
 
-    // dedupe by uid, keep order first-seen
-    const uniqueA = Array.from(new Map(a.map((p) => [p.uid, p])).values());
-    const uniqueB = Array.from(new Map(b.map((p) => [p.uid, p])).values());
-
-    setTeamA(uniqueA);
-    setTeamB(uniqueB);
+    setTeamA(Array.from(new Map(a.map((p) => [p.uid, p])).values()));
+    setTeamB(Array.from(new Map(b.map((p) => [p.uid, p])).values()));
   }, [participants, teams]);
 
-  // redirect to live page when status = live
   useEffect(() => {
-    // ... (existing logic, no changes needed) ...
     if (!debateId || !debate) return;
     if (debate.status === "live") {
       router.replace(`/debate/${debateId}/live`);
@@ -208,7 +160,6 @@ export default function DebateLobby() {
     participants.some((p) => p.uid === auth.currentUser!.uid);
 
   function canJoinTeam(team: "A" | "B") {
-    // ... (existing logic, no changes needed) ...
     if (team === "A") {
       return teamB.length > 0 || (teamA.length === 0 && teamB.length === 0);
     }
@@ -218,30 +169,20 @@ export default function DebateLobby() {
     return false;
   }
 
-  // --- MODIFIED handleJoin ---
   async function handleJoin(selectedTeam?: "A" | "B") {
     if (!debateId || !debate) return;
 
-    // 1. Check Firebase Auth
     const user = auth.currentUser;
     if (!user) {
       alert("Please sign in to join.");
       return;
     }
 
-    // 2. Check Wallet Connection
-    if (!currentAccount) {
-      alert("Please connect your wallet to join.");
-      return;
-    }
-
-    // 3. Check if already a participant in Firestore
     if (participants.some((p) => p.uid === user.uid)) {
       alert("You are already in this debate lobby.");
       return;
     }
 
-    // 4. Determine team
     let team: "A" | "B" | undefined = undefined;
     if (debate?.mode === "team") {
       if (!selectedTeam) {
@@ -250,43 +191,12 @@ export default function DebateLobby() {
       }
       team = selectedTeam;
     } else {
-      // For 1v1, auto-assign to Team B if Team A is full
       if (teamA.length > 0) team = "B";
-      else team = "A"; // Should be host, but as a fallback
+      else team = "A";
     }
 
     setJoining(true);
     try {
-      // 5. --- BLOCKCHAIN LOGIC ---
-      const { onChainId, participantB, stake, status } = debate;
-      const isDesignatedOpponent =
-        currentAccount.toLowerCase() === participantB?.toLowerCase();
-      const stakeAmount = stake;
-
-      // Check if this user is P2 and needs to stake
-      if (
-        isDesignatedOpponent &&
-        typeof onChainId === "number" &&
-        stakeAmount &&
-        parseFloat(stakeAmount) > 0
-      ) {
-        // We must check if P2 has already staked.
-        // For simplicity, we assume if they aren't in the 'participants' list, they haven't.
-        // A more robust check would query the smart contract state.
-
-        console.log(
-          `Joining as designated opponent. Staking ${stakeAmount} ETH...`
-        );
-        // This will trigger MetaMask
-        await joinBlockchainDebate(onChainId, stakeAmount.toString());
-        console.log("Blockchain stake successful!");
-      }
-      // --- END BLOCKCHAIN LOGIC ---
-
-      // 6. --- FIRESTORE LOGIC ---
-      // (Runs after blockchain logic is successful, or if no stake was needed)
-
-      // Add/update participant doc
       await setDoc(doc(db, "debates", debateId, "participants", user.uid), {
         uid: user.uid,
         displayName: user.displayName || user.email || "Anonymous",
@@ -295,13 +205,11 @@ export default function DebateLobby() {
         ...(team ? { team } : {}),
       });
 
-      // Update teams subcollection
       if (team) {
         const teamDoc = doc(db, "debates", debateId, "teams", team);
         await updateDoc(teamDoc, {
           members: arrayUnion(user.uid),
         }).catch(async (err) => {
-          // If team doc doesn't exist, create it
           if (err.code === "not-found") {
             await setDoc(
               teamDoc,
@@ -315,20 +223,13 @@ export default function DebateLobby() {
       }
     } catch (err: any) {
       console.error("[HandleJoin] error:", err);
-      if (err.code === 4001) {
-        alert(
-          "Transaction rejected. You must approve the stake in MetaMask to join."
-        );
-      } else {
-        alert(`Failed to join debate: ${err.message}`);
-      }
+      alert(`Failed to join debate: ${err.message}`);
     } finally {
       setJoining(false);
     }
   }
 
   async function handleStart() {
-    // ... (existing logic, no changes needed) ...
     if (!debateId) return;
     const user = auth.currentUser;
     if (!user) return;
@@ -347,15 +248,13 @@ export default function DebateLobby() {
   if (!debateId) return <div>Invalid debate ID</div>;
   if (!debate) return <div>Loading...</div>;
 
-  // Determine overall loading state
-  const isLoading = joining || isBlockchainLoading;
+  const isLoading = joining;
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header Section */}
         <Card className="border shadow-md">
-          {/* ... (existing CardHeader, no changes) ... */}
           <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-2">
@@ -377,26 +276,9 @@ export default function DebateLobby() {
           </CardHeader>
         </Card>
 
-        {/* --- Connect Wallet Button --- */}
-        {!currentAccount && (
-          <Card className="border shadow-md">
-            <CardContent className="p-4">
-              <Button
-                onClick={connectWallet}
-                className="w-full"
-                variant="outline"
-              >
-                <Wallet className="mr-2 h-4 w-4" />
-                Connect Wallet to Join
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Participants */}
           <Card className="lg:col-span-2 border shadow-md">
-            {/* ... (existing participants list, no changes) ... */}
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -416,7 +298,7 @@ export default function DebateLobby() {
                       Team A ({teamA.length})
                     </h4>
                     <div className="space-y-2">
-                      {teamA.map((p: any) => (
+                      {teamA.map((p) => (
                         <div
                           key={p.id}
                           className="flex items-center gap-3 rounded-md border p-2 hover:bg-gray-50 transition"
@@ -447,7 +329,7 @@ export default function DebateLobby() {
                       Team B ({teamB.length})
                     </h4>
                     <div className="space-y-2">
-                      {teamB.map((p: any) => (
+                      {teamB.map((p) => (
                         <div
                           key={p.id}
                           className="flex items-center gap-3 rounded-md border p-2 hover:bg-gray-50 transition"
@@ -473,7 +355,7 @@ export default function DebateLobby() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {participants.map((p: any) => (
+                  {participants.map((p) => (
                     <div
                       key={p.id}
                       className="flex items-center gap-3 rounded-md border p-3 hover:bg-gray-50 transition"
@@ -510,16 +392,14 @@ export default function DebateLobby() {
                     <div className="flex flex-col gap-3">
                       <Button
                         onClick={() => handleJoin("A")}
-                        disabled={isLoading || !currentAccount} // Disable if loading or no wallet
+                        disabled={isLoading} 
                         className="bg-emerald-600 hover:bg-emerald-700"
                       >
                         {isLoading ? "Joining..." : "Join Team A"}
                       </Button>
                       <Button
                         onClick={() => handleJoin("B")}
-                        disabled={
-                          isLoading || !canJoinTeam("B") || !currentAccount
-                        } // Disable if loading, can't join, or no wallet
+                        disabled={isLoading || !canJoinTeam("B")}
                         className="bg-rose-600 hover:bg-rose-700 disabled:bg-rose-300"
                       >
                         {isLoading ? "Joining..." : "Join Team B"}
@@ -528,7 +408,7 @@ export default function DebateLobby() {
                   ) : (
                     <Button
                       onClick={() => handleJoin()}
-                      disabled={isLoading || !currentAccount} // Disable if loading or no wallet
+                      disabled={isLoading} 
                       className="w-full bg-purple-600 hover:bg-purple-700"
                     >
                       {isLoading ? "Joining..." : "Join Debate"}
@@ -541,7 +421,6 @@ export default function DebateLobby() {
             {/* Start Button for Host */}
             {isHost && debate.status === "waiting" && (
               <Card className="border shadow-md">
-                {/* ... (existing host logic, no changes) ... */}
                 <CardContent className="p-6">
                   <h4 className="font-semibold text-center mb-3">
                     Ready to Begin?
@@ -560,7 +439,6 @@ export default function DebateLobby() {
 
             {/* Room Info */}
             <Card className="border shadow-md">
-              {/* ... (existing room info, no changes) ... */}
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Info className="w-5 h-5 text-purple-500" />
@@ -576,27 +454,13 @@ export default function DebateLobby() {
                   <Separator />
                   <div className="flex justify-between">
                     <span>Mode</span>
-                    <span className="font-semibold capitalize">
-                      {debate.mode}
-                    </span>
+                    <span className="font-semibold capitalize">{debate.mode}</span>
                   </div>
                   <Separator />
                   <div className="flex justify-between">
                     <span>Participants</span>
                     <span className="font-semibold">{participants.length}</span>
                   </div>
-                  {/* NEW: Show on-chain stake info */}
-                  {debate.stake && parseFloat(debate.stake) > 0 && (
-                    <>
-                      <Separator />
-                      <div className="flex justify-between">
-                        <span>Stake</span>
-                        <span className="font-semibold">
-                          {debate.stake} ETH
-                        </span>
-                      </div>
-                    </>
-                  )}
                 </div>
               </CardContent>
             </Card>

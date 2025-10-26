@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
 // import { db } from "@/lib/firebase";
-import { collection, getDocs, query, orderBy } from "firebase/firestore";
+import { collection, getDocs, query, orderBy, doc, getDoc } from "firebase/firestore";
 import { db } from "@/backend/firebase";
 
 export async function GET(
-  _req: Request,
-  context: { params: { debateId: string } }
+  request: Request,
+  { params }: { params: { debateId: string } }
 ) {
-  const { debateId } = context.params;
+  const { debateId } = params;
 
   try {
+    // Reference to the messages collection for this specific debate
     const messagesRef = collection(db, `debates/${debateId}/messages`);
     const q = query(messagesRef, orderBy("createdAt", "asc"));
     const snapshot = await getDocs(q);
@@ -31,23 +32,33 @@ export async function GET(
       );
     }
 
-    const user1 = users[0];
-    const user2 = users[1];
+    // Fetch the displayName for both users
+    const [user1Uid, user2Uid] = users;
 
-    // Numbering messages like:
-    // 1. message
-    // 2. message
-    const query1 = msgByUser[user1]
+    const getUserDisplayName = async (uid: string) => {
+      const userDoc = doc(db, "users", uid);
+      const userSnapshot = await getDoc(userDoc);
+      return userSnapshot.exists() ? userSnapshot.data().displayName : uid; // Fallback to uid if no displayName
+    };
+
+    const [user1DisplayName, user2DisplayName] = await Promise.all([
+      getUserDisplayName(user1Uid),
+      getUserDisplayName(user2Uid),
+    ]);
+
+    // Format the messages by each user
+    const query1 = msgByUser[user1Uid]
       .map((msg, i) => `${i + 1}. ${msg}`)
       .join(" ");
 
-    const query2 = msgByUser[user2]
+    const query2 = msgByUser[user2Uid]
       .map((msg, i) => `${i + 1}. ${msg}`)
       .join(" ");
 
+    // Return the response with display names
     return NextResponse.json({
-      user1,
-      user2,
+      user1: user1DisplayName,
+      user2: user2DisplayName,
       thread_id: debateId,
       query1,
       query2,

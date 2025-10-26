@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { nanoid } from "nanoid";
-import admin from "@/backend/firebaseAdmin"; // your server-only admin SDK wrapper
+import admin from "@/backend/firebaseAdmin";
 
 export async function POST(req: Request) {
   try {
@@ -17,8 +16,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing user id" }, { status: 401 });
     }
 
-    const debateId = nanoid(10);
-    const meetingToken = nanoid(8);
+    const debateId = Date.now().toString();
+    const meetingToken = Math.floor(10000000 + Math.random() * 90000000).toString();  
+
     const meetingLink = `${process.env.NEXT_PUBLIC_BASE_URL}/debate/${debateId}?t=${meetingToken}`;
 
     const db = admin.firestore();
@@ -41,10 +41,8 @@ export async function POST(req: Request) {
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
-    // Create debate
     await db.collection("debates").doc(debateId).set(debateData);
 
-    // Add participant
     await db
       .collection("debates")
       .doc(debateId)
