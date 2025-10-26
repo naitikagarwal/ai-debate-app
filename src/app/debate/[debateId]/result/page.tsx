@@ -67,14 +67,14 @@ async function storeOnBlockchain(debateId: number, answer: string) {
 function parseAiResultText(text: string): ParsedAiAnswer {
   const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
 
-  let user1 = { name: "", score: "", reason: "" };
-  let user2 = { name: "", score: "", reason: "" };
+  const user1 = { name: "", score: "", reason: "" };
+  const user2 = { name: "", score: "", reason: "" };
   let winnerId = "";
   let winnerReason = "";
 
   let current = ""; // "user1" | "user2" | "winner"
 
-  for (let line of lines) {
+  for (const line of lines) {
 
     // SCORE LINES
     if (line.startsWith("score to")) {
