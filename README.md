@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI Debate Judge
 
-## Getting Started
+## Overview
+AI Debate Judge is a **Web3-enabled AI-powered debate platform**. Users can participate in or observe structured debates (individual or team-based). An **AI Judge** evaluates arguments, assigns scores, and publishes results to a blockchain for transparency and immutability.
 
-First, run the development server:
+---
 
+## Features
+- **User Accounts & Participation:** Register/login using Firebase Auth. Join or create debates in real-time.
+- **Debate Interface:** Chat-style UI supporting rounds of argument and rebuttal.
+- **AI Judge:** Scores debates with reasoning; decision is final.
+- **Blockchain Integration:** Stores results on-chain for verifiability.
+
+---
+
+## Tech Stack
+- **Next.js** – Frontend & server-side routing
+- **Firebase Auth & Firestore** – Authentication & data storage
+- **Tailwind CSS** – UI styling
+
+---
+
+## Setup
+
+### 1. Clone the repository
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/naitikagarwal/ai-debate-app
+cd ai-debate-app
+```
+### 2. Install dependencies
+```bash
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 3. Set environment variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Create a .env.local file in the project root and add:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-## Learn More
+### 4. Run the development server
+```bash
+npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Open http://localhost:3000
+ to view the app.
