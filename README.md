@@ -44,3 +44,4 @@ npm run dev
 
 Open http://localhost:3000
  to view the app.
+[Deployed link](ai-debate-app-o82j.vercel.app/)
